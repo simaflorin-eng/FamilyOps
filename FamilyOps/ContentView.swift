@@ -76,6 +76,9 @@ enum AppLanguage: String, CaseIterable {
             "pts_until_prize": [.romanian: "puncte până la premiu", .english: "points to prize", .german: "Punkte bis zum Preis", .french: "points avant la récompense", .spanish: "puntos hasta el premio", .italian: "punti al premio", .portuguese: "pontos até ao prémio", .polish: "punktów do nagrody", .dutch: "punten tot prijs"],
             "select_child": [.romanian: "Alege Copilul", .english: "Select Child", .german: "Kind wählen", .french: "Choisir l'enfant", .spanish: "Elegir niño", .italian: "Scegli bambino", .portuguese: "Escolher criança", .polish: "Wybierz dziecko", .dutch: "Kies kind"],
             "rewards_section": [.romanian: "Configurare Milestones", .english: "Milestone Setup", .german: "Meilenstein-Konfiguration"],
+            "milestones": [.romanian: "Milestones", .english: "Milestones", .german: "Meilensteine", .french: "Étapes", .spanish: "Hitos", .italian: "Traguardi", .portuguese: "Marcos", .polish: "Kamienie milowe", .dutch: "Mijlpalen"],
+            "milestone_rewards": [.romanian: "Milestones și recompense", .english: "Milestones and rewards", .german: "Meilensteine und Belohnungen", .french: "Étapes et récompenses", .spanish: "Hitos y recompensas", .italian: "Traguardi e ricompense", .portuguese: "Marcos e recompensas", .polish: "Kamienie milowe i nagrody", .dutch: "Mijlpalen en beloningen"],
+            "final_milestone": [.romanian: "Milestone final", .english: "Final milestone", .german: "Finaler Meilenstein", .french: "Étape finale", .spanish: "Hito final", .italian: "Traguardo finale", .portuguese: "Marco final", .polish: "Finałowy kamień milowy", .dutch: "Laatste mijlpaal"],
             "reward_25_def": [.romanian: "Înghețată", .english: "Ice Cream", .german: "Eiscreme", .french: "Glace", .spanish: "Helado", .italian: "Gelato", .portuguese: "Gelado", .polish: "Lody", .dutch: "IJsje"],
             "reward_50_def": [.romanian: "Film", .english: "Movie", .german: "Film", .french: "Film", .spanish: "Película", .italian: "Film", .portuguese: "Filme", .polish: "Film", .dutch: "Film"],
             "reward_75_def": [.romanian: "Jucărie", .english: "Toy", .german: "Spielzeug", .french: "Jouet", .spanish: "Juguete", .italian: "Giocattolo", .portuguese: "Brinquedo", .polish: "Zabawka", .dutch: "Speelgoed"],
@@ -992,6 +995,13 @@ struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("appTheme") private var selectedTheme: AppTheme = .system
     @AppStorage("appLanguage") private var selectedLanguage: AppLanguage = .romanian
+    @AppStorage("reward25Points") private var reward25Points: Int = 25
+    @AppStorage("reward25Name") private var reward25Name: String = ""
+    @AppStorage("reward50Points") private var reward50Points: Int = 50
+    @AppStorage("reward50Name") private var reward50Name: String = ""
+    @AppStorage("reward75Points") private var reward75Points: Int = 75
+    @AppStorage("reward75Name") private var reward75Name: String = ""
+    @AppStorage("reward100Name") private var reward100Name: String = ""
 
     var body: some View {
         NavigationStack {
@@ -1034,6 +1044,43 @@ struct SettingsView: View {
                                     }
                                     .pickerStyle(.menu)
                                 }
+                            }
+                        }
+
+                        settingsCard {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text(selectedLanguage.translate("milestone_rewards"))
+                                    .font(.headline.bold())
+
+                                MilestoneEditorRow(
+                                    title: selectedLanguage.translate("milestones"),
+                                    points: $reward25Points,
+                                    rewardName: $reward25Name,
+                                    placeholder: selectedLanguage.translate("reward_25_def"),
+                                    range: 1...97
+                                )
+
+                                MilestoneEditorRow(
+                                    title: selectedLanguage.translate("milestones"),
+                                    points: $reward50Points,
+                                    rewardName: $reward50Name,
+                                    placeholder: selectedLanguage.translate("reward_50_def"),
+                                    range: 2...98
+                                )
+
+                                MilestoneEditorRow(
+                                    title: selectedLanguage.translate("milestones"),
+                                    points: $reward75Points,
+                                    rewardName: $reward75Name,
+                                    placeholder: selectedLanguage.translate("reward_75_def"),
+                                    range: 3...99
+                                )
+
+                                FinalMilestoneRow(
+                                    title: selectedLanguage.translate("final_milestone"),
+                                    rewardName: $reward100Name,
+                                    placeholder: selectedLanguage.translate("reward_100_def")
+                                )
                             }
                         }
 
@@ -1089,51 +1136,54 @@ struct AddChildSheet: View {
                 FamilyBackground()
                     .ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(selectedLanguage.translate("add_child_desc"))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(selectedLanguage.translate("avatar"))
-                            .font(.headline.bold())
-                        Text(selectedLanguage.translate("choose_avatar"))
-                            .font(.caption)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(selectedLanguage.translate("add_child_desc"))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                            ForEach(FamilyAvatarCatalog.symbols, id: \.self) { symbol in
-                                Button {
-                                    selectedAvatarSymbol = symbol
-                                } label: {
-                                    AvatarBadge(
-                                        symbol: symbol,
-                                        gradient: FamilyAvatarCatalog.gradient(for: FamilyAvatarCatalog.symbols.firstIndex(of: symbol) ?? 0),
-                                        size: 50,
-                                        isSelected: selectedAvatarSymbol == symbol
-                                    )
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(selectedLanguage.translate("avatar"))
+                                .font(.headline.bold())
+                            Text(selectedLanguage.translate("choose_avatar"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                                ForEach(FamilyAvatarCatalog.symbols, id: \.self) { symbol in
+                                    Button {
+                                        selectedAvatarSymbol = symbol
+                                    } label: {
+                                        AvatarBadge(
+                                            symbol: symbol,
+                                            gradient: FamilyAvatarCatalog.gradient(for: FamilyAvatarCatalog.symbols.firstIndex(of: symbol) ?? 0),
+                                            size: 50,
+                                            isSelected: selectedAvatarSymbol == symbol
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
+
+                        TextField(selectedLanguage.translate("name"), text: $newChildName)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+
+                        Button {
+                            saveAction()
+                        } label: {
+                            Label(selectedLanguage.translate("save"), systemImage: "sparkles")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(FamilyPrimaryButtonStyle(colors: AppPalette.primaryButtonColors))
+                        .disabled(newChildName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-
-                    TextField(selectedLanguage.translate("name"), text: $newChildName)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-
-                    Button {
-                        saveAction()
-                    } label: {
-                        Label(selectedLanguage.translate("save"), systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(FamilyPrimaryButtonStyle(colors: AppPalette.primaryButtonColors))
-                    .disabled(newChildName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 28)
                 }
-                .padding(20)
             }
             .navigationTitle(selectedLanguage.translate("add_child"))
             .navigationBarTitleDisplayMode(.inline)
@@ -1147,7 +1197,7 @@ struct AddChildSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.34)])
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -1165,48 +1215,51 @@ struct EditChildSheet: View {
                 FamilyBackground()
                     .ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(selectedLanguage.translate("choose_avatar"))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(selectedLanguage.translate("choose_avatar"))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.secondary)
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(selectedLanguage.translate("avatar"))
-                            .font(.headline.bold())
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(selectedLanguage.translate("avatar"))
+                                .font(.headline.bold())
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                            ForEach(FamilyAvatarCatalog.symbols, id: \.self) { symbol in
-                                Button {
-                                    selectedAvatarSymbol = symbol
-                                } label: {
-                                    AvatarBadge(
-                                        symbol: symbol,
-                                        gradient: FamilyAvatarCatalog.gradient(for: FamilyAvatarCatalog.symbols.firstIndex(of: symbol) ?? 0),
-                                        size: 50,
-                                        isSelected: selectedAvatarSymbol == symbol
-                                    )
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                                ForEach(FamilyAvatarCatalog.symbols, id: \.self) { symbol in
+                                    Button {
+                                        selectedAvatarSymbol = symbol
+                                    } label: {
+                                        AvatarBadge(
+                                            symbol: symbol,
+                                            gradient: FamilyAvatarCatalog.gradient(for: FamilyAvatarCatalog.symbols.firstIndex(of: symbol) ?? 0),
+                                            size: 50,
+                                            isSelected: selectedAvatarSymbol == symbol
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
+
+                        TextField(selectedLanguage.translate("name"), text: $childName)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+
+                        Button {
+                            saveAction()
+                        } label: {
+                            Label(selectedLanguage.translate("save"), systemImage: "checkmark")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(FamilyPrimaryButtonStyle(colors: AppPalette.primaryButtonColors))
+                        .disabled(childName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-
-                    TextField(selectedLanguage.translate("name"), text: $childName)
-                        .textFieldStyle(.roundedBorder)
-                        .autocorrectionDisabled()
-
-                    Button {
-                        saveAction()
-                    } label: {
-                        Label(selectedLanguage.translate("save"), systemImage: "checkmark")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(FamilyPrimaryButtonStyle(colors: AppPalette.primaryButtonColors))
-                    .disabled(childName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                    Spacer()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 28)
                 }
-                .padding(20)
             }
             .navigationTitle(selectedLanguage.translate("edit_child"))
             .navigationBarTitleDisplayMode(.inline)
@@ -1218,7 +1271,7 @@ struct EditChildSheet: View {
                 }
             }
         }
-        .presentationDetents([.fraction(0.48)])
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -1628,6 +1681,49 @@ struct RewardReadyRow: View {
 
     private var stroke: Color {
         colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.28)
+    }
+}
+
+struct MilestoneEditorRow: View {
+    let title: String
+    @Binding var points: Int
+    @Binding var rewardName: String
+    let placeholder: String
+    let range: ClosedRange<Int>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("\(title) • \(points) pts")
+                    .font(.subheadline.bold())
+                Spacer()
+                Stepper("", value: $points, in: range)
+                    .labelsHidden()
+            }
+
+            TextField(placeholder, text: $rewardName)
+                .textFieldStyle(.roundedBorder)
+        }
+        .padding(14)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+struct FinalMilestoneRow: View {
+    let title: String
+    @Binding var rewardName: String
+    let placeholder: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(title) • 100 pts")
+                .font(.subheadline.bold())
+
+            TextField(placeholder, text: $rewardName)
+                .textFieldStyle(.roundedBorder)
+        }
+        .padding(14)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
 
