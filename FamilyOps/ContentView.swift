@@ -79,6 +79,7 @@ enum AppLanguage: String, CaseIterable {
             "milestones": [.romanian: "Milestones", .english: "Milestones", .german: "Meilensteine", .french: "Étapes", .spanish: "Hitos", .italian: "Traguardi", .portuguese: "Marcos", .polish: "Kamienie milowe", .dutch: "Mijlpalen"],
             "milestone_rewards": [.romanian: "Milestones și recompense", .english: "Milestones and rewards", .german: "Meilensteine und Belohnungen", .french: "Étapes et récompenses", .spanish: "Hitos y recompensas", .italian: "Traguardi e ricompense", .portuguese: "Marcos e recompensas", .polish: "Kamienie milowe i nagrody", .dutch: "Mijlpalen en beloningen"],
             "final_milestone": [.romanian: "Milestone final", .english: "Final milestone", .german: "Finaler Meilenstein", .french: "Étape finale", .spanish: "Hito final", .italian: "Traguardo finale", .portuguese: "Marco final", .polish: "Finałowy kamień milowy", .dutch: "Laatste mijlpaal"],
+            "reward_cycle_hint": [.romanian: "Milestone-urile se resetează vizual la fiecare 100 de puncte, dar punctele totale rămân.", .english: "Milestones reset visually every 100 points, but total points stay accumulated.", .german: "Meilensteine starten visuell alle 100 Punkte neu, aber die Gesamtpunkte bleiben erhalten.", .french: "Les étapes se réinitialisent visuellement tous les 100 points, mais le total reste cumulé.", .spanish: "Los hitos se reinician visualmente cada 100 puntos, pero el total sigue acumulado.", .italian: "I traguardi si azzerano visivamente ogni 100 punti, ma il totale resta accumulato.", .portuguese: "Os marcos reiniciam visualmente a cada 100 pontos, mas o total continua acumulado.", .polish: "Kamienie milowe resetują się wizualnie co 100 punktów, ale suma punktów pozostaje.", .dutch: "Mijlpalen starten visueel opnieuw bij elke 100 punten, maar het totaal aantal punten blijft behouden."],
             "reward_25_def": [.romanian: "Înghețată", .english: "Ice Cream", .german: "Eiscreme", .french: "Glace", .spanish: "Helado", .italian: "Gelato", .portuguese: "Gelado", .polish: "Lody", .dutch: "IJsje"],
             "reward_50_def": [.romanian: "Film", .english: "Movie", .german: "Film", .french: "Film", .spanish: "Película", .italian: "Film", .portuguese: "Filme", .polish: "Film", .dutch: "Film"],
             "reward_75_def": [.romanian: "Jucărie", .english: "Toy", .german: "Spielzeug", .french: "Jouet", .spanish: "Juguete", .italian: "Giocattolo", .portuguese: "Brinquedo", .polish: "Zabawka", .dutch: "Speelgoed"],
@@ -671,8 +672,7 @@ struct TasksView: View {
                 if let child = task.child {
                     child.points = max(0, child.points - task.points)
                     if !child.hasCompletedTaskToday(excluding: task) {
-                        child.lastStreakDate = nil
-                        child.currentStreak = 0
+                        child.removeCompletion(for: Date())
                     }
                 }
             } else {
@@ -680,9 +680,6 @@ struct TasksView: View {
                 task.child?.points += task.points
                 if let child = task.child {
                     child.registerCompletion(on: Date())
-                }
-                if let child = task.child, child.points > 0, child.points % 100 == 0 {
-                    child.level += 1
                 }
             }
             try? modelContext.save()
@@ -949,13 +946,18 @@ struct MilestoneProgressView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.14))
-                    .frame(height: 12)
+        VStack(alignment: .leading, spacing: 10) {
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let markerWidth: CGFloat = 28
+                let barY: CGFloat = 18
 
-                GeometryReader { geometry in
+                ZStack(alignment: .topLeading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.14))
+                        .frame(height: 12)
+                        .offset(y: barY)
+
                     Capsule()
                         .fill(
                             LinearGradient(
@@ -964,29 +966,47 @@ struct MilestoneProgressView: View {
                                 endPoint: .trailing
                             )
                         )
-                        .frame(width: geometry.size.width * currentProgress, height: 12)
-                }
-                .frame(height: 12)
-            }
+                        .frame(width: width * currentProgress, height: 12)
+                        .offset(y: barY)
 
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(milestones) { milestone in
-                    let isReached = milestone.points <= (points % 100 == 0 && points > 0 ? 100 : points % 100)
+                    ForEach(milestones) { milestone in
+                        let cyclePoints = points > 0 && points % 100 == 0 ? 100 : points % 100
+                        let isReached = milestone.points <= cyclePoints
+                        let ratio = CGFloat(milestone.points) / 100
+                        let x = min(max(width * ratio, markerWidth / 2), width - markerWidth / 2)
 
-                    VStack(alignment: .leading, spacing: 6) {
                         Circle()
                             .fill(isReached ? .white : .white.opacity(0.35))
-                            .frame(width: 12, height: 12)
-                        Text("\(milestone.points)")
-                            .font(.caption2.weight(.black))
-                        Text(milestone.name)
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(.white.opacity(isReached ? 1 : 0.7))
-                            .lineLimit(2)
+                            .frame(width: milestone.points == 100 ? 14 : 12, height: milestone.points == 100 ? 14 : 12)
+                            .overlay {
+                                Circle()
+                                    .stroke(.white.opacity(isReached ? 0.0 : 0.25), lineWidth: 1)
+                            }
+                        .frame(width: markerWidth)
+                        .position(x: x, y: barY + 4)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .frame(height: 34)
+
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let labelWidth: CGFloat = 30
+
+                ZStack(alignment: .topLeading) {
+                    ForEach(milestones) { milestone in
+                        let ratio = CGFloat(milestone.points) / 100
+                        let x = min(max(width * ratio, labelWidth / 2), width - labelWidth / 2)
+
+                        Text("\(milestone.points)")
+                            .font(.caption2.weight(milestone.points == 100 ? .black : .semibold))
+                            .foregroundStyle(.white.opacity(milestone.points == 100 ? 1 : 0.72))
+                            .frame(width: labelWidth)
+                            .position(x: x, y: 8)
+                    }
+                }
+            }
+            .frame(height: 16)
         }
     }
 }
@@ -1052,6 +1072,10 @@ struct SettingsView: View {
                                 Text(selectedLanguage.translate("milestone_rewards"))
                                     .font(.headline.bold())
 
+                                Text(selectedLanguage.translate("reward_cycle_hint"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
                                 MilestoneEditorRow(
                                     title: selectedLanguage.translate("milestones"),
                                     points: $reward25Points,
@@ -1097,6 +1121,10 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle(selectedLanguage.translate("settings"))
+            .onAppear(perform: normalizeMilestones)
+            .onChange(of: reward25Points) { _, _ in normalizeMilestones() }
+            .onChange(of: reward50Points) { _, _ in normalizeMilestones() }
+            .onChange(of: reward75Points) { _, _ in normalizeMilestones() }
         }
     }
 
@@ -1119,6 +1147,12 @@ struct SettingsView: View {
 
     private var settingsCardStroke: Color {
         colorScheme == .dark ? Color.white.opacity(0.08) : Color.white.opacity(0.28)
+    }
+
+    private func normalizeMilestones() {
+        reward25Points = min(max(reward25Points, 1), 97)
+        reward50Points = min(max(reward50Points, reward25Points + 1), 98)
+        reward75Points = min(max(reward75Points, reward50Points + 1), 99)
     }
 }
 
@@ -1440,7 +1474,7 @@ struct ChildJourneyCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(child.name)
                             .font(.title3.weight(.black))
-                        Text("\(selectedLanguage.translate("level")) \(child.level)")
+                        Text("\(selectedLanguage.translate("level")) \(child.currentLevel)")
                             .font(.caption.bold())
                             .foregroundStyle(.secondary)
                     }
@@ -2035,9 +2069,18 @@ enum AppPalette {
 
 extension Child {
     private var calendar: Calendar { .current }
+    private var historyDateFormatter: ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate]
+        return formatter
+    }
 
     var completedTasksToday: Int {
         tasks.filter(\.isCompletedToday).count
+    }
+
+    var currentLevel: Int {
+        max(1, (points / 100) + 1)
     }
 
     var progressToNextReward: Double {
@@ -2076,23 +2119,17 @@ extension Child {
     }
 
     func registerCompletion(on date: Date) {
-        if let lastStreakDate {
-            if calendar.isDate(lastStreakDate, inSameDayAs: date) {
-                if currentStreak == 0 {
-                    currentStreak = 1
-                }
-            } else if let previousDay = calendar.date(byAdding: .day, value: -1, to: date),
-                      calendar.isDate(lastStreakDate, inSameDayAs: previousDay) {
-                currentStreak += 1
-            } else {
-                currentStreak = 1
-            }
-        } else {
-            currentStreak = 1
-        }
+        var history = completionHistorySet()
+        history.insert(dayKey(for: date))
+        completedDayHistory = history.sorted().joined(separator: ",")
+        recalculateStreaks(referenceDate: date)
+    }
 
-        bestStreak = max(bestStreak, currentStreak)
-        lastStreakDate = date
+    func removeCompletion(for date: Date) {
+        var history = completionHistorySet()
+        history.remove(dayKey(for: date))
+        completedDayHistory = history.sorted().joined(separator: ",")
+        recalculateStreaks(referenceDate: date)
     }
 
     var currentRewardCycle: Int {
@@ -2125,6 +2162,80 @@ extension Child {
         var claims = claimedRewardSet()
         claims.insert(rewardClaimID(for: reward))
         claimedRewardIDs = claims.sorted().joined(separator: ",")
+    }
+
+    private func completionHistorySet() -> Set<String> {
+        Set(completedDayHistory.split(separator: ",").map(String.init))
+    }
+
+    private func dayKey(for date: Date) -> String {
+        historyDateFormatter.string(from: date)
+    }
+
+    private func date(from dayKey: String) -> Date? {
+        historyDateFormatter.date(from: dayKey)
+    }
+
+    private func recalculateStreaks(referenceDate: Date) {
+        let dates = completionHistorySet()
+            .compactMap(date(from:))
+            .sorted()
+
+        guard !dates.isEmpty else {
+            currentStreak = 0
+            lastStreakDate = nil
+            return
+        }
+
+        lastStreakDate = dates.last
+        bestStreak = max(bestStreak, longestConsecutiveRun(in: dates))
+
+        let today = calendar.startOfDay(for: referenceDate)
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)
+        let latest = calendar.startOfDay(for: dates.last ?? today)
+
+        guard latest == today || latest == yesterday else {
+            currentStreak = 0
+            return
+        }
+
+        currentStreak = trailingConsecutiveRun(in: dates, endingAt: latest)
+    }
+
+    private func trailingConsecutiveRun(in dates: [Date], endingAt latest: Date) -> Int {
+        var streak = 0
+        var cursor = latest
+        let daySet = Set(dates.map { calendar.startOfDay(for: $0) })
+
+        while daySet.contains(cursor) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+
+        return streak
+    }
+
+    private func longestConsecutiveRun(in dates: [Date]) -> Int {
+        let sortedDays = Array(Set(dates.map { calendar.startOfDay(for: $0) })).sorted()
+        guard !sortedDays.isEmpty else { return 0 }
+
+        var longest = 1
+        var current = 1
+
+        for index in 1..<sortedDays.count {
+            let previous = sortedDays[index - 1]
+            let currentDay = sortedDays[index]
+            if let nextExpected = calendar.date(byAdding: .day, value: 1, to: previous),
+               calendar.isDate(nextExpected, inSameDayAs: currentDay) {
+                current += 1
+                longest = max(longest, current)
+            } else {
+                current = 1
+            }
+        }
+
+        return longest
     }
 }
 
